@@ -6,10 +6,10 @@ import ru.gameplatform.dto.LoginRequest;
 import ru.gameplatform.dto.RegisterRequest;
 import ru.gameplatform.exception.ApiException;
 import ru.gameplatform.model.User;
-import ru.gameplatform.repository.AuditLogRepository;
-import ru.gameplatform.repository.TransactionRepository;
-import ru.gameplatform.repository.UserRepository;
-import ru.gameplatform.repository.UserRoleRepository;
+import ru.gameplatform.repository.AuditLogDao;
+import ru.gameplatform.repository.TransactionDao;
+import ru.gameplatform.repository.UserDao;
+import ru.gameplatform.repository.UserRoleDao;
 import ru.gameplatform.security.JwtUtil;
 import ru.gameplatform.util.JdbcTransaction;
 
@@ -20,10 +20,10 @@ public class AuthService {
 
     private static final BigDecimal REGISTRATION_BONUS = new BigDecimal("1000.00");
 
-    private final UserRepository userRepository = new UserRepository();
-    private final UserRoleRepository userRoleRepository = new UserRoleRepository();
-    private final TransactionRepository transactionRepository = new TransactionRepository();
-    private final AuditLogRepository auditLogRepository = new AuditLogRepository();
+    private final UserDao userDao = new UserDao();
+    private final UserRoleDao userRoleDao = new UserRoleDao();
+    private final TransactionDao transactionDao = new TransactionDao();
+    private final AuditLogDao auditLogDao = new AuditLogDao();
     private final JwtUtil jwtUtil;
 
     public AuthService(JwtUtil jwtUtil) {
@@ -49,24 +49,24 @@ public class AuthService {
             throw new ApiException(400, "Пароль должен быть не короче 6 символов");
         }
 
-        if (userRepository.existsByUsername(username)) {
+        if (userDao.existsByUsername(username)) {
             throw new ApiException(409, "Имя пользователя уже занято");
         }
-        if (userRepository.findByEmail(email).isPresent()) {
+        if (userDao.findByEmail(email).isPresent()) {
             throw new ApiException(409, "Пользователь с таким email уже зарегистрирован");
         }
 
         String passwordHash = BCrypt.hashpw(password, BCrypt.gensalt(10));
 
         int userId = JdbcTransaction.execute(conn -> {
-            int id = userRepository.insert(conn, username, email, passwordHash, REGISTRATION_BONUS);
-            userRoleRepository.assign(conn, id, "PLAYER");
-            transactionRepository.insert(conn, id, REGISTRATION_BONUS, "REGISTRATION_BONUS",
+            int id = userDao.insert(conn, username, email, passwordHash, REGISTRATION_BONUS);
+            userRoleDao.assign(conn, id, "PLAYER");
+            transactionDao.insert(conn, id, REGISTRATION_BONUS, "REGISTRATION_BONUS",
                     "Стартовый бонус при регистрации");
             return id;
         });
 
-        auditLogRepository.log("REGISTER", userId, "{\"email\":\"" + email + "\"}", ip);
+        auditLogDao.log("REGISTER", userId, "{\"email\":\"" + email + "\"}", ip);
     }
 
     public AuthResponse login(LoginRequest req, String ip) {
@@ -76,17 +76,17 @@ public class AuthService {
         }
 
         String email = req.email().trim().toLowerCase();
-        Optional<User> found = userRepository.findByEmail(email);
+        Optional<User> found = userDao.findByEmail(email);
 
         if (found.isEmpty()) {
-            auditLogRepository.log("LOGIN_FAILED", null, "{\"email\":\"" + email + "\"}", ip);
+            auditLogDao.log("LOGIN_FAILED", null, "{\"email\":\"" + email + "\"}", ip);
             throw new ApiException(401, "Неверный email или пароль");
         }
 
         User user = found.get();
 
         if (!BCrypt.checkpw(req.password(), user.passwordHash())) {
-            auditLogRepository.log("LOGIN_FAILED", user.id(), null, ip);
+            auditLogDao.log("LOGIN_FAILED", user.id(), null, ip);
             throw new ApiException(401, "Неверный email или пароль");
         }
 
@@ -94,7 +94,7 @@ public class AuthService {
             throw new ApiException(403, "Учётная запись деактивирована");
         }
 
-        auditLogRepository.log("LOGIN", user.id(), null, ip);
+        auditLogDao.log("LOGIN", user.id(), null, ip);
 
         String token = jwtUtil.generateToken(user.id(), user.username(), user.role());
         return new AuthResponse(token, user.username(), user.role(), user.balance());

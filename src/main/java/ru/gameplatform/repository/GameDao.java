@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public class GameRepository {
+public class GameDao {
 
     public List<Game> findAllActive() {
         String sql = """

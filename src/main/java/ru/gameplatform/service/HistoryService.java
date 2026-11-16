@@ -4,24 +4,24 @@ import ru.gameplatform.dto.PageResponse;
 import ru.gameplatform.dto.SessionHistoryItem;
 import ru.gameplatform.dto.TransactionHistoryItem;
 import ru.gameplatform.exception.ApiException;
-import ru.gameplatform.repository.GameSessionRepository;
-import ru.gameplatform.repository.TransactionRepository;
+import ru.gameplatform.repository.GameSessionDao;
+import ru.gameplatform.repository.TransactionDao;
 
 public class HistoryService {
 
-    private final GameSessionRepository gameSessionRepository = new GameSessionRepository();
-    private final TransactionRepository transactionRepository = new TransactionRepository();
+    private final GameSessionDao gameSessionDao = new GameSessionDao();
+    private final TransactionDao transactionDao = new TransactionDao();
 
     public PageResponse<SessionHistoryItem> sessions(int userId, String game, String result,
                                                      int page, int size) {
         validatePage(page, size);
-        return gameSessionRepository.findHistory(userId, game, result, page, size);
+        return gameSessionDao.findHistory(userId, game, result, page, size);
     }
 
     public PageResponse<TransactionHistoryItem> transactions(int userId, String type, String from, String to,
                                                              int page, int size) {
         validatePage(page, size);
-        return transactionRepository.findHistory(userId, type, from, to, page, size);
+        return transactionDao.findHistory(userId, type, from, to, page, size);
     }
 
     private void validatePage(int page, int size) {

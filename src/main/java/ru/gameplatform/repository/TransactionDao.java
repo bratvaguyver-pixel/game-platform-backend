@@ -12,7 +12,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TransactionRepository {
+public class TransactionDao {
 
     public void insert(Connection conn, int userId, BigDecimal amount, String type,
                        String description) throws SQLException {

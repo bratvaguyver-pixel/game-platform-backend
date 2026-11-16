@@ -9,7 +9,7 @@ import ru.gameplatform.controller.GameController;
 import ru.gameplatform.controller.HistoryController;
 import ru.gameplatform.controller.ProfileController;
 import ru.gameplatform.exception.ApiException;
-import ru.gameplatform.repository.GameRepository;
+import ru.gameplatform.repository.GameDao;
 import ru.gameplatform.security.JwtFilter;
 import ru.gameplatform.security.JwtUtil;
 import ru.gameplatform.service.AuthService;
@@ -44,7 +44,7 @@ public class Main {
 
         HistoryController historyController = new HistoryController(jwtFilter, new HistoryService());
 
-        GameRepository gameRepository = new GameRepository();
+        GameDao gameDao = new GameDao();
 
         Javalin app = Javalin.create(config -> {
 
@@ -65,7 +65,7 @@ public class Main {
 
         app.get("/api/games", ctx -> ctx.json(Map.of(
                 "success", true,
-                "data", gameRepository.findAllActive()
+                "data", gameDao.findAllActive()
         )));
 
         authController.registerRoutes(app);

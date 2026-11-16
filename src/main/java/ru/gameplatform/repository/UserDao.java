@@ -11,7 +11,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Optional;
 
-public class UserRepository {
+public class UserDao {
 
     public Optional<User> findByEmail(String email) {
         String sql = """

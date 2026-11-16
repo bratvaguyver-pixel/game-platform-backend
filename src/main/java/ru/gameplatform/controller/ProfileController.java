@@ -4,14 +4,14 @@ import io.javalin.Javalin;
 import io.javalin.http.Context;
 import ru.gameplatform.exception.ApiException;
 import ru.gameplatform.model.User;
-import ru.gameplatform.repository.UserRepository;
+import ru.gameplatform.repository.UserDao;
 import ru.gameplatform.security.JwtFilter;
 
 import java.util.Map;
 
 public class ProfileController {
 
-    private final UserRepository userRepository = new UserRepository();
+    private final UserDao userDao = new UserDao();
     private final JwtFilter jwtFilter;
 
     public ProfileController(JwtFilter jwtFilter) {
@@ -25,7 +25,7 @@ public class ProfileController {
     private void profile(Context ctx) {
         int userId = ctx.attribute("userId");
 
-        User user = userRepository.findById(userId)
+        User user = userDao.findById(userId)
                 .orElseThrow(() -> new ApiException(404, "Пользователь не найден"));
 
         ctx.json(Map.of(

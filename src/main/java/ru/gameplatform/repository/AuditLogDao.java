@@ -7,7 +7,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
 
-public class AuditLogRepository {
+public class AuditLogDao {
 
     public void log(String action, Integer userId, String detailsJson, String ip) {
         String sql = """

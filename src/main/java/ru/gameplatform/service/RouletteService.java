@@ -4,11 +4,11 @@ import ru.gameplatform.dto.GameRoundResponse;
 import ru.gameplatform.dto.PlayRouletteRequest;
 import ru.gameplatform.exception.ApiException;
 import ru.gameplatform.model.Game;
-import ru.gameplatform.repository.GameRepository;
-import ru.gameplatform.repository.GameSessionRepository;
-import ru.gameplatform.repository.GameSettingsRepository;
-import ru.gameplatform.repository.TransactionRepository;
-import ru.gameplatform.repository.UserRepository;
+import ru.gameplatform.repository.GameDao;
+import ru.gameplatform.repository.GameSessionDao;
+import ru.gameplatform.repository.GameSettingsDao;
+import ru.gameplatform.repository.TransactionDao;
+import ru.gameplatform.repository.UserDao;
 import ru.gameplatform.util.JdbcTransaction;
 
 import java.math.BigDecimal;
@@ -24,11 +24,11 @@ public class RouletteService {
             1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36);
 
     private final Random random = new SecureRandom();
-    private final UserRepository userRepository = new UserRepository();
-    private final GameRepository gameRepository = new GameRepository();
-    private final GameSettingsRepository gameSettingsRepository = new GameSettingsRepository();
-    private final GameSessionRepository gameSessionRepository = new GameSessionRepository();
-    private final TransactionRepository transactionRepository = new TransactionRepository();
+    private final UserDao userDao = new UserDao();
+    private final GameDao gameDao = new GameDao();
+    private final GameSettingsDao gameSettingsDao = new GameSettingsDao();
+    private final GameSessionDao gameSessionDao = new GameSessionDao();
+    private final TransactionDao transactionDao = new TransactionDao();
 
     public GameRoundResponse play(int userId, PlayRouletteRequest req) {
 
@@ -47,7 +47,7 @@ public class RouletteService {
             throw new ApiException(400, "betType должен быть RED, BLACK или NUMBER");
         }
 
-        Game game = gameRepository.findByType(GAME_TYPE)
+        Game game = gameDao.findByType(GAME_TYPE)
                 .orElseThrow(() -> new ApiException(404, "Игра не найдена или отключена"));
 
         BigDecimal bet = req.betAmount();
@@ -58,10 +58,10 @@ public class RouletteService {
 
         return JdbcTransaction.execute(conn -> {
 
-            if (!userRepository.decreaseBalance(conn, userId, bet)) {
+            if (!userDao.decreaseBalance(conn, userId, bet)) {
                 throw new ApiException(400, "Недостаточно средств на балансе");
             }
-            transactionRepository.insert(conn, userId, bet, "BET",
+            transactionDao.insert(conn, userId, bet, "BET",
                     "Ставка в игре " + game.name());
 
             int resultNumber = random.nextInt(37);
@@ -72,12 +72,12 @@ public class RouletteService {
 
             if (betType.equals("NUMBER")) {
                 win = resultNumber == number;
-                multiplier = new BigDecimal(gameSettingsRepository
+                multiplier = new BigDecimal(gameSettingsDao
                         .findValue(conn, game.id(), "number_multiplier")
                         .orElse("36.0"));
             } else {
                 win = betType.equals(resultColor);
-                multiplier = new BigDecimal(gameSettingsRepository
+                multiplier = new BigDecimal(gameSettingsDao
                         .findValue(conn, game.id(), "color_multiplier")
                         .orElse("2.0"));
             }
@@ -85,15 +85,15 @@ public class RouletteService {
             BigDecimal winAmount = BigDecimal.ZERO;
             if (win) {
                 winAmount = bet.multiply(multiplier).setScale(2, RoundingMode.HALF_UP);
-                userRepository.increaseBalance(conn, userId, winAmount);
-                transactionRepository.insert(conn, userId, winAmount, "WIN",
+                userDao.increaseBalance(conn, userId, winAmount);
+                transactionDao.insert(conn, userId, winAmount, "WIN",
                         "Выигрыш в игре " + game.name());
             }
 
-            gameSessionRepository.insert(conn, userId, game.id(), bet,
+            gameSessionDao.insert(conn, userId, game.id(), bet,
                     win ? "WIN" : "LOSS", winAmount);
 
-            BigDecimal balance = userRepository.getBalance(conn, userId);
+            BigDecimal balance = userDao.getBalance(conn, userId);
             String detail = resultNumber + " " + resultColor;
 
             return new GameRoundResponse(game.type(), win ? "WIN" : "LOSS",

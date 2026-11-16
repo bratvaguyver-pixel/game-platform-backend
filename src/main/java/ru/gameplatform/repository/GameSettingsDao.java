@@ -6,7 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Optional;
 
-public class GameSettingsRepository {
+public class GameSettingsDao {
 
     public Optional<String> findValue(Connection conn, int gameId, String parameterName) throws SQLException {
         String sql = "SELECT parameter_value FROM game_settings WHERE game_id = ? AND parameter_name = ?";

@@ -4,7 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-public class UserRoleRepository {
+public class UserRoleDao {
 
     public void assign(Connection conn, int userId, String roleName) throws SQLException {
         String sql = """

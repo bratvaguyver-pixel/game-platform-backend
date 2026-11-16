@@ -12,7 +12,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class GameSessionRepository {
+public class GameSessionDao {
 
     public void insert(Connection conn, int userId, int gameId, BigDecimal betAmount,
                        String result, BigDecimal winAmount) throws SQLException {

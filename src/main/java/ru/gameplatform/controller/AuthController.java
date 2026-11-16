@@ -1,13 +1,15 @@
 package ru.gameplatform.controller;
 
-import io.javalin.http.Context;
 import io.javalin.Javalin;
+import io.javalin.http.Context;
+import org.springframework.stereotype.Component;
 import ru.gameplatform.dto.LoginRequest;
 import ru.gameplatform.dto.RegisterRequest;
 import ru.gameplatform.service.AuthService;
 
 import java.util.Map;
 
+@Component
 public class AuthController {
 
     private final AuthService authService;

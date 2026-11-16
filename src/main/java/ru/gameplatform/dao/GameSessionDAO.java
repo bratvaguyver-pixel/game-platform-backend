@@ -1,9 +1,11 @@
-package ru.gameplatform.repository;
+package ru.gameplatform.dao;
 
-import ru.gameplatform.config.DatabaseConfig;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.stereotype.Repository;
 import ru.gameplatform.dto.PageResponse;
 import ru.gameplatform.dto.SessionHistoryItem;
 
+import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -12,14 +14,21 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class GameSessionDao {
+@Repository
+public class GameSessionDAO {
 
-    public void insert(Connection conn, int userId, int gameId, BigDecimal betAmount,
-                       String result, BigDecimal winAmount) throws SQLException {
+    private final DataSource dataSource;
+
+    public GameSessionDAO(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    public void insert(int userId, int gameId, BigDecimal betAmount, String result, BigDecimal winAmount) {
         String sql = """
                 INSERT INTO game_session (user_id, game_id, bet_amount, result, win_amount)
                 VALUES (?, ?, ?, ?, ?)
                 """;
+        Connection conn = DataSourceUtils.getConnection(dataSource);
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, userId);
             ps.setInt(2, gameId);
@@ -27,12 +36,15 @@ public class GameSessionDao {
             ps.setString(4, result);
             ps.setBigDecimal(5, winAmount);
             ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Ошибка записи игровой сессии", e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
         }
     }
 
     public PageResponse<SessionHistoryItem> findHistory(int userId, String gameType, String result,
                                                         int page, int size) {
-
         StringBuilder where = new StringBuilder(" WHERE gs.user_id = ?");
         List<Object> params = new ArrayList<>();
         params.add(userId);
@@ -62,8 +74,8 @@ public class GameSessionDao {
                 LIMIT ? OFFSET ?
                 """;
 
-        try (Connection conn = DatabaseConfig.getDataSource().getConnection()) {
-
+        Connection conn = DataSourceUtils.getConnection(dataSource);
+        try {
             long total;
             try (PreparedStatement ps = conn.prepareStatement(countSql)) {
                 for (int i = 0; i < params.size(); i++) {
@@ -104,6 +116,8 @@ public class GameSessionDao {
 
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка выборки истории сессий", e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
         }
     }
 }

@@ -2,6 +2,7 @@ package ru.gameplatform.controller;
 
 import io.javalin.Javalin;
 import io.javalin.http.Context;
+import org.springframework.stereotype.Component;
 import ru.gameplatform.dto.PlayCoinFlipRequest;
 import ru.gameplatform.dto.PlayMinesRequest;
 import ru.gameplatform.dto.PlayRouletteRequest;
@@ -12,6 +13,7 @@ import ru.gameplatform.service.RouletteService;
 
 import java.util.Map;
 
+@Component
 public class GameController {
 
     private final JwtFilter jwtFilter;
@@ -19,8 +21,10 @@ public class GameController {
     private final RouletteService rouletteService;
     private final MinesService minesService;
 
-    public GameController(JwtFilter jwtFilter, CoinFlipService coinFlipService,
-                          RouletteService rouletteService, MinesService minesService) {
+    public GameController(JwtFilter jwtFilter,
+                          CoinFlipService coinFlipService,
+                          RouletteService rouletteService,
+                          MinesService minesService) {
         this.jwtFilter = jwtFilter;
         this.coinFlipService = coinFlipService;
         this.rouletteService = rouletteService;

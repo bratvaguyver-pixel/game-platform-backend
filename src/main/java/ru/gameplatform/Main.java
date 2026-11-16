@@ -2,49 +2,32 @@ package ru.gameplatform;
 
 import io.javalin.Javalin;
 import io.javalin.http.staticfiles.Location;
-import ru.gameplatform.config.AppConfig;
-import ru.gameplatform.config.DatabaseConfig;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import ru.gameplatform.config.SpringConfig;
 import ru.gameplatform.controller.AuthController;
 import ru.gameplatform.controller.GameController;
 import ru.gameplatform.controller.HistoryController;
 import ru.gameplatform.controller.ProfileController;
+import ru.gameplatform.dao.GameDAO;
 import ru.gameplatform.exception.ApiException;
-import ru.gameplatform.repository.GameDao;
-import ru.gameplatform.security.JwtFilter;
-import ru.gameplatform.security.JwtUtil;
-import ru.gameplatform.service.AuthService;
-import ru.gameplatform.service.CoinFlipService;
-import ru.gameplatform.service.HistoryService;
-import ru.gameplatform.service.MinesService;
-import ru.gameplatform.service.RouletteService;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
 import java.util.Map;
 
 public class Main {
 
     public static void main(String[] args) {
 
-        JwtUtil jwtUtil = new JwtUtil(
-                AppConfig.get("jwt.secret"),
-                AppConfig.getInt("jwt.expiration.minutes", 1440)
-        );
+        AnnotationConfigApplicationContext context =
+                new AnnotationConfigApplicationContext(SpringConfig.class);
 
-        JwtFilter jwtFilter = new JwtFilter(jwtUtil);
-
-        AuthService authService = new AuthService(jwtUtil);
-        AuthController authController = new AuthController(authService);
-        ProfileController profileController = new ProfileController(jwtFilter);
-
-        GameController gameController = new GameController(
-                jwtFilter,
-                new CoinFlipService(),
-                new RouletteService(),
-                new MinesService()
-        );
-
-        HistoryController historyController = new HistoryController(jwtFilter, new HistoryService());
-
-        GameDao gameDao = new GameDao();
+        AuthController authController = context.getBean(AuthController.class);
+        ProfileController profileController = context.getBean(ProfileController.class);
+        GameController gameController = context.getBean(GameController.class);
+        HistoryController historyController = context.getBean(HistoryController.class);
+        GameDAO gameDAO = context.getBean(GameDAO.class);
+        DataSource dataSource = context.getBean(DataSource.class);
 
         Javalin app = Javalin.create(config -> {
 
@@ -59,13 +42,13 @@ public class Main {
 
         app.get("/api/health", ctx -> ctx.json(Map.of(
                 "success", true,
-                "message", "Сервер игровой платформы запущен на Java 25",
-                "database", isDatabaseAvailable()
+                "message", "Сервер игровой платформы: Java 25 + Spring Core",
+                "database", isDatabaseAvailable(dataSource)
         )));
 
         app.get("/api/games", ctx -> ctx.json(Map.of(
                 "success", true,
-                "data", gameDao.findAllActive()
+                "data", gameDAO.findAllActive()
         )));
 
         authController.registerRoutes(app);
@@ -93,13 +76,13 @@ public class Main {
             ));
         });
 
-        app.events(event -> event.serverStopping(() -> DatabaseConfig.close()));
+        app.events(event -> event.serverStopping(() -> context.close()));
 
         app.start(8080);
     }
 
-    private static boolean isDatabaseAvailable() {
-        try (var conn = DatabaseConfig.getDataSource().getConnection()) {
+    private static boolean isDatabaseAvailable(DataSource dataSource) {
+        try (Connection conn = dataSource.getConnection()) {
             return conn.isValid(2);
         } catch (Exception e) {
             return false;

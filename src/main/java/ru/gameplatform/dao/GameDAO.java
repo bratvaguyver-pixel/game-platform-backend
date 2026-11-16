@@ -1,8 +1,10 @@
-package ru.gameplatform.repository;
+package ru.gameplatform.dao;
 
-import ru.gameplatform.config.DatabaseConfig;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.stereotype.Repository;
 import ru.gameplatform.model.Game;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,7 +13,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public class GameDao {
+@Repository
+public class GameDAO {
+
+    private final DataSource dataSource;
+
+    public GameDAO(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     public List<Game> findAllActive() {
         String sql = """
@@ -20,21 +29,18 @@ public class GameDao {
                 WHERE is_active = TRUE
                 ORDER BY id
                 """;
-
         List<Game> games = new ArrayList<>();
-
-        try (Connection conn = DatabaseConfig.getDataSource().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
+        Connection conn = DataSourceUtils.getConnection(dataSource);
+        try (PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
-
             while (rs.next()) {
                 games.add(mapRow(rs));
             }
-
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка выборки игр из базы данных", e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
         }
-
         return games;
     }
 
@@ -44,8 +50,8 @@ public class GameDao {
                 FROM game
                 WHERE type = ? AND is_active = TRUE
                 """;
-        try (Connection conn = DatabaseConfig.getDataSource().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        Connection conn = DataSourceUtils.getConnection(dataSource);
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, type);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -54,6 +60,8 @@ public class GameDao {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка поиска игры по типу", e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
         }
         return Optional.empty();
     }

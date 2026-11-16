@@ -1,9 +1,11 @@
-package ru.gameplatform.repository;
+package ru.gameplatform.dao;
 
-import ru.gameplatform.config.DatabaseConfig;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.stereotype.Repository;
 import ru.gameplatform.dto.PageResponse;
 import ru.gameplatform.dto.TransactionHistoryItem;
 
+import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -12,26 +14,36 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TransactionDao {
+@Repository
+public class TransactionDAO {
 
-    public void insert(Connection conn, int userId, BigDecimal amount, String type,
-                       String description) throws SQLException {
+    private final DataSource dataSource;
+
+    public TransactionDAO(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    public void insert(int userId, BigDecimal amount, String type, String description) {
         String sql = """
                 INSERT INTO transaction (user_id, amount, type, description)
                 VALUES (?, ?, ?, ?)
                 """;
+        Connection conn = DataSourceUtils.getConnection(dataSource);
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, userId);
             ps.setBigDecimal(2, amount);
             ps.setString(3, type);
             ps.setString(4, description);
             ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Ошибка записи транзакции", e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
         }
     }
 
     public PageResponse<TransactionHistoryItem> findHistory(int userId, String type, String from, String to,
                                                             int page, int size) {
-
         StringBuilder where = new StringBuilder(" WHERE t.user_id = ?");
         List<Object> params = new ArrayList<>();
         params.add(userId);
@@ -59,8 +71,8 @@ public class TransactionDao {
                 + base + where
                 + "\nORDER BY t.created_at DESC, t.id DESC\nLIMIT ? OFFSET ?";
 
-        try (Connection conn = DatabaseConfig.getDataSource().getConnection()) {
-
+        Connection conn = DataSourceUtils.getConnection(dataSource);
+        try {
             long total;
             try (PreparedStatement ps = conn.prepareStatement(countSql)) {
                 for (int i = 0; i < params.size(); i++) {
@@ -99,6 +111,8 @@ public class TransactionDao {
 
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка выборки истории транзакций", e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
         }
     }
 }

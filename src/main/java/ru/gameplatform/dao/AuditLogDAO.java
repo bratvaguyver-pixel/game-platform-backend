@@ -1,21 +1,30 @@
-package ru.gameplatform.repository;
+package ru.gameplatform.dao;
 
-import ru.gameplatform.config.DatabaseConfig;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.stereotype.Repository;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
 
-public class AuditLogDao {
+@Repository
+public class AuditLogDAO {
+
+    private final DataSource dataSource;
+
+    public AuditLogDAO(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     public void log(String action, Integer userId, String detailsJson, String ip) {
         String sql = """
                 INSERT INTO audit_log (user_id, action, details, ip_address)
                 VALUES (?, ?, ?::jsonb, ?)
                 """;
-        try (Connection conn = DatabaseConfig.getDataSource().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        Connection conn = DataSourceUtils.getConnection(dataSource);
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             if (userId == null) {
                 ps.setNull(1, Types.INTEGER);
             } else {
@@ -27,6 +36,8 @@ public class AuditLogDao {
             ps.executeUpdate();
         } catch (SQLException e) {
             System.err.println("Не удалось записать audit_log: " + e.getMessage());
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
         }
     }
 }

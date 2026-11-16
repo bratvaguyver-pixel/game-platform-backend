@@ -1,27 +1,35 @@
 package ru.gameplatform.service;
 
+import org.springframework.stereotype.Service;
+import ru.gameplatform.dao.GameSessionDAO;
+import ru.gameplatform.dao.TransactionDAO;
 import ru.gameplatform.dto.PageResponse;
 import ru.gameplatform.dto.SessionHistoryItem;
 import ru.gameplatform.dto.TransactionHistoryItem;
 import ru.gameplatform.exception.ApiException;
-import ru.gameplatform.repository.GameSessionDao;
-import ru.gameplatform.repository.TransactionDao;
 
+@Service
 public class HistoryService {
 
-    private final GameSessionDao gameSessionDao = new GameSessionDao();
-    private final TransactionDao transactionDao = new TransactionDao();
+    private final GameSessionDAO gameSessionDAO;
+    private final TransactionDAO transactionDAO;
+
+    public HistoryService(GameSessionDAO gameSessionDAO,
+                          TransactionDAO transactionDAO) {
+        this.gameSessionDAO = gameSessionDAO;
+        this.transactionDAO = transactionDAO;
+    }
 
     public PageResponse<SessionHistoryItem> sessions(int userId, String game, String result,
                                                      int page, int size) {
         validatePage(page, size);
-        return gameSessionDao.findHistory(userId, game, result, page, size);
+        return gameSessionDAO.findHistory(userId, game, result, page, size);
     }
 
     public PageResponse<TransactionHistoryItem> transactions(int userId, String type, String from, String to,
                                                              int page, int size) {
         validatePage(page, size);
-        return transactionDao.findHistory(userId, type, from, to, page, size);
+        return transactionDAO.findHistory(userId, type, from, to, page, size);
     }
 
     private void validatePage(int page, int size) {

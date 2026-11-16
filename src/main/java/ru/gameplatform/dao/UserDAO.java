@@ -1,8 +1,10 @@
-package ru.gameplatform.repository;
+package ru.gameplatform.dao;
 
-import ru.gameplatform.config.DatabaseConfig;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.stereotype.Repository;
 import ru.gameplatform.model.User;
 
+import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -11,7 +13,14 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Optional;
 
-public class UserDao {
+@Repository
+public class UserDAO {
+
+    private final DataSource dataSource;
+
+    public UserDAO(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     public Optional<User> findByEmail(String email) {
         String sql = """
@@ -25,8 +34,8 @@ public class UserDao {
                 FROM "user" u
                 WHERE u.email = ?
                 """;
-        try (Connection conn = DatabaseConfig.getDataSource().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        Connection conn = DataSourceUtils.getConnection(dataSource);
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, email);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -35,6 +44,8 @@ public class UserDao {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка поиска пользователя", e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
         }
         return Optional.empty();
     }
@@ -51,8 +62,8 @@ public class UserDao {
                 FROM "user" u
                 WHERE u.id = ?
                 """;
-        try (Connection conn = DatabaseConfig.getDataSource().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        Connection conn = DataSourceUtils.getConnection(dataSource);
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -61,29 +72,33 @@ public class UserDao {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка поиска пользователя по id", e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
         }
         return Optional.empty();
     }
 
     public boolean existsByUsername(String username) {
         String sql = "SELECT 1 FROM \"user\" WHERE username = ?";
-        try (Connection conn = DatabaseConfig.getDataSource().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        Connection conn = DataSourceUtils.getConnection(dataSource);
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, username);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
             }
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка проверки имени пользователя", e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
         }
     }
 
-    public int insert(Connection conn, String username, String email, String passwordHash,
-                      BigDecimal balance) throws SQLException {
+    public int insert(String username, String email, String passwordHash, BigDecimal balance) {
         String sql = """
                 INSERT INTO "user" (username, email, password_hash, balance)
                 VALUES (?, ?, ?, ?)
                 """;
+        Connection conn = DataSourceUtils.getConnection(dataSource);
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, username);
             ps.setString(2, email);
@@ -95,31 +110,46 @@ public class UserDao {
                     return keys.getInt(1);
                 }
             }
+        } catch (SQLException e) {
+            throw new RuntimeException("Ошибка создания пользователя", e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
         }
-        throw new SQLException("Не удалось получить id созданного пользователя");
+        throw new IllegalStateException("Не удалось получить id созданного пользователя");
     }
 
-    public boolean decreaseBalance(Connection conn, int userId, BigDecimal amount) throws SQLException {
+    public boolean decreaseBalance(int userId, BigDecimal amount) {
         String sql = "UPDATE \"user\" SET balance = balance - ? WHERE id = ? AND balance >= ?";
+        Connection conn = DataSourceUtils.getConnection(dataSource);
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setBigDecimal(1, amount);
             ps.setInt(2, userId);
             ps.setBigDecimal(3, amount);
             return ps.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new RuntimeException("Ошибка списания средств", e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
         }
     }
 
-    public void increaseBalance(Connection conn, int userId, BigDecimal amount) throws SQLException {
+    public void increaseBalance(int userId, BigDecimal amount) {
         String sql = "UPDATE \"user\" SET balance = balance + ? WHERE id = ?";
+        Connection conn = DataSourceUtils.getConnection(dataSource);
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setBigDecimal(1, amount);
             ps.setInt(2, userId);
             ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Ошибка начисления средств", e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
         }
     }
 
-    public BigDecimal getBalance(Connection conn, int userId) throws SQLException {
+    public BigDecimal getBalance(int userId) {
         String sql = "SELECT balance FROM \"user\" WHERE id = ?";
+        Connection conn = DataSourceUtils.getConnection(dataSource);
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -127,8 +157,12 @@ public class UserDao {
                     return rs.getBigDecimal("balance");
                 }
             }
+        } catch (SQLException e) {
+            throw new RuntimeException("Ошибка чтения баланса", e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
         }
-        throw new SQLException("Пользователь не найден: id=" + userId);
+        throw new IllegalStateException("Пользователь не найден: id=" + userId);
     }
 
     private User mapRow(ResultSet rs) throws SQLException {

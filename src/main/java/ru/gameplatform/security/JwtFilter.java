@@ -4,8 +4,10 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import io.javalin.http.Context;
 import io.javalin.http.Handler;
+import org.springframework.stereotype.Component;
 import ru.gameplatform.exception.ApiException;
 
+@Component
 public class JwtFilter {
 
     private final JwtUtil jwtUtil;

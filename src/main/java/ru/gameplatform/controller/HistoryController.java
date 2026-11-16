@@ -2,11 +2,13 @@ package ru.gameplatform.controller;
 
 import io.javalin.Javalin;
 import io.javalin.http.Context;
+import org.springframework.stereotype.Component;
 import ru.gameplatform.security.JwtFilter;
 import ru.gameplatform.service.HistoryService;
 
 import java.util.Map;
 
+@Component
 public class HistoryController {
 
     private final JwtFilter jwtFilter;

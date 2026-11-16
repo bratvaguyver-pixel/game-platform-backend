@@ -15,9 +15,14 @@ public class UserRepository {
 
     public Optional<User> findByEmail(String email) {
         String sql = """
-                SELECT u.id, u.username, u.email, u.password_hash, u.balance, u.is_active, r.name AS role
+                SELECT u.id, u.username, u.email, u.password_hash, u.balance, u.is_active,
+                       (SELECT r.name
+                          FROM user_role ur
+                          JOIN role r ON r.id = ur.role_id
+                         WHERE ur.user_id = u.id
+                         ORDER BY ur.role_id
+                         LIMIT 1) AS role
                 FROM "user" u
-                JOIN role r ON r.id = u.role_id
                 WHERE u.email = ?
                 """;
         try (Connection conn = DatabaseConfig.getDataSource().getConnection();
@@ -36,9 +41,14 @@ public class UserRepository {
 
     public Optional<User> findById(int id) {
         String sql = """
-                SELECT u.id, u.username, u.email, u.password_hash, u.balance, u.is_active, r.name AS role
+                SELECT u.id, u.username, u.email, u.password_hash, u.balance, u.is_active,
+                       (SELECT r.name
+                          FROM user_role ur
+                          JOIN role r ON r.id = ur.role_id
+                         WHERE ur.user_id = u.id
+                         ORDER BY ur.role_id
+                         LIMIT 1) AS role
                 FROM "user" u
-                JOIN role r ON r.id = u.role_id
                 WHERE u.id = ?
                 """;
         try (Connection conn = DatabaseConfig.getDataSource().getConnection();
@@ -69,17 +79,16 @@ public class UserRepository {
     }
 
     public int insert(Connection conn, String username, String email, String passwordHash,
-                      BigDecimal balance, String roleName) throws SQLException {
+                      BigDecimal balance) throws SQLException {
         String sql = """
-                INSERT INTO "user" (username, email, password_hash, balance, role_id)
-                VALUES (?, ?, ?, ?, (SELECT id FROM role WHERE name = ?))
+                INSERT INTO "user" (username, email, password_hash, balance)
+                VALUES (?, ?, ?, ?)
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, username);
             ps.setString(2, email);
             ps.setString(3, passwordHash);
             ps.setBigDecimal(4, balance);
-            ps.setString(5, roleName);
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 if (keys.next()) {

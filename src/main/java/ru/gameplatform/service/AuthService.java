@@ -9,6 +9,7 @@ import ru.gameplatform.model.User;
 import ru.gameplatform.repository.AuditLogRepository;
 import ru.gameplatform.repository.TransactionRepository;
 import ru.gameplatform.repository.UserRepository;
+import ru.gameplatform.repository.UserRoleRepository;
 import ru.gameplatform.security.JwtUtil;
 import ru.gameplatform.util.JdbcTransaction;
 
@@ -20,6 +21,7 @@ public class AuthService {
     private static final BigDecimal REGISTRATION_BONUS = new BigDecimal("1000.00");
 
     private final UserRepository userRepository = new UserRepository();
+    private final UserRoleRepository userRoleRepository = new UserRoleRepository();
     private final TransactionRepository transactionRepository = new TransactionRepository();
     private final AuditLogRepository auditLogRepository = new AuditLogRepository();
     private final JwtUtil jwtUtil;
@@ -57,7 +59,8 @@ public class AuthService {
         String passwordHash = BCrypt.hashpw(password, BCrypt.gensalt(10));
 
         int userId = JdbcTransaction.execute(conn -> {
-            int id = userRepository.insert(conn, username, email, passwordHash, REGISTRATION_BONUS, "PLAYER");
+            int id = userRepository.insert(conn, username, email, passwordHash, REGISTRATION_BONUS);
+            userRoleRepository.assign(conn, id, "PLAYER");
             transactionRepository.insert(conn, id, REGISTRATION_BONUS, "REGISTRATION_BONUS",
                     "Стартовый бонус при регистрации");
             return id;
